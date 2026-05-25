@@ -32,8 +32,23 @@ export interface DashboardUserDTO {
   countryCode: string | null;
   contactNumber: string | null;
   isActive: boolean;
+  mustChangePassword: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface DashboardSessionDTO {
+  id: string;
+  userId: string;
+  userFullName: string;
+  userEmail: string;
+  userRole: UserRole;
+  ip: string | null;
+  userAgent: string | null;
+  expiresAt: Date;
+  createdAt: Date;
+  isExpired: boolean;
+  isCurrent: boolean;
 }
 
 export interface DashboardPropertySummaryDTO {
@@ -103,12 +118,14 @@ export interface DashboardPropertyAssignmentDTO {
 
 export interface DashboardAmenityDTO {
   id: string;
-  propertyId: string;
-  propertyName: string;
   name: string;
   icon: string | null;
   isActive: boolean;
   createdAt: Date;
+}
+
+export interface DashboardPropertyAmenityAssignmentsDTO {
+  amenityIds: string[];
 }
 
 export interface DashboardUnitDTO {
@@ -132,7 +149,6 @@ export interface DashboardRoomDTO {
   unitNumber: string;
   name: string;
   number: string;
-  rent: number;
   hasAC: boolean;
   maxOccupancy: number;
   status: RoomStatus;
@@ -307,6 +323,7 @@ export interface DashboardCouponDTO {
   validFrom: Date;
   validTo: Date | null;
   isActive: boolean;
+  oncePerUser: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

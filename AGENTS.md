@@ -1,8 +1,8 @@
-# Rently Engineering Rules
+# HAH Engineering Rules
 
 ## Project Context
 
-Rently is a modular monolith fullstack application.
+HAH is a modular monolith fullstack application.
 
 Frontend:
 

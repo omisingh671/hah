@@ -17,6 +17,7 @@ import {
   type PropertyStatus,
   type UnitStatus,
 } from "@/generated/prisma/client.js";
+import { randomUUID } from "node:crypto";
 
 const dashboardPropertyInclude = {
   tenant: true,
@@ -33,17 +34,13 @@ const dashboardAssignmentInclude = {
   assignedBy: true,
 } satisfies Prisma.PropertyAssignmentInclude;
 
-const dashboardAmenityInclude = {
-  property: true,
-} satisfies Prisma.AmenityInclude;
+const dashboardSessionInclude = {
+  user: true,
+} satisfies Prisma.SessionInclude;
 
 const dashboardUnitInclude = {
   property: true,
-  amenities: {
-    include: {
-      amenity: true,
-    },
-  },
+  amenities: true,
 } satisfies Prisma.UnitInclude;
 
 const dashboardRoomInclude = {
@@ -52,11 +49,7 @@ const dashboardRoomInclude = {
       property: true,
     },
   },
-  amenities: {
-    include: {
-      amenity: true,
-    },
-  },
+  amenities: true,
 } satisfies Prisma.RoomInclude;
 
 const dashboardMaintenanceInclude = {
@@ -144,8 +137,18 @@ export type DashboardPropertyAssignmentRecord =
   Prisma.PropertyAssignmentGetPayload<{
     include: typeof dashboardAssignmentInclude;
   }>;
+export type DashboardSessionRecord = Prisma.SessionGetPayload<{
+  include: typeof dashboardSessionInclude;
+}>;
+const dashboardAmenitySelect = {
+  id: true,
+  name: true,
+  icon: true,
+  isActive: true,
+  createdAt: true,
+} satisfies Prisma.AmenitySelect;
 export type DashboardAmenityRecord = Prisma.AmenityGetPayload<{
-  include: typeof dashboardAmenityInclude;
+  select: typeof dashboardAmenitySelect;
 }>;
 export type DashboardUnitRecord = Prisma.UnitGetPayload<{
   include: typeof dashboardUnitInclude;
@@ -207,10 +210,20 @@ export type DashboardGalleryRecord = Prisma.GalleryGetPayload<{
 interface UserListFilters {
   page: number;
   limit: number;
-  roles: UserRole[];
+  roles?: UserRole[];
   search?: string;
   isActive?: boolean;
+  mustChangePassword?: boolean;
   createdByUserId?: string;
+}
+
+interface SessionListFilters {
+  page: number;
+  limit: number;
+  search?: string;
+  userId?: string;
+  role?: UserRole;
+  status?: "active" | "expired";
 }
 
 interface PropertyListFilters {
@@ -242,7 +255,6 @@ interface AssignmentListFilters {
 interface AmenityListFilters {
   page: number;
   limit: number;
-  propertyId: string;
   search?: string;
   isActive?: boolean;
 }
@@ -327,7 +339,7 @@ interface LeadListFilters {
 
 const buildUserWhere = (filters: Omit<UserListFilters, "page" | "limit">) =>
   ({
-    role: { in: filters.roles },
+    ...(filters.roles !== undefined && { role: { in: filters.roles } }),
     ...(filters.search !== undefined && {
       OR: [
         { fullName: { contains: filters.search } },
@@ -335,10 +347,38 @@ const buildUserWhere = (filters: Omit<UserListFilters, "page" | "limit">) =>
       ],
     }),
     ...(filters.isActive !== undefined && { isActive: filters.isActive }),
+    ...(filters.mustChangePassword !== undefined && {
+      mustChangePassword: filters.mustChangePassword,
+    }),
     ...(filters.createdByUserId !== undefined && {
       createdByUserId: filters.createdByUserId,
     }),
   }) satisfies Prisma.UserWhereInput;
+
+const buildSessionWhere = (
+  filters: Omit<SessionListFilters, "page" | "limit">,
+) => {
+  const now = new Date();
+
+  return {
+    ...(filters.userId !== undefined && { userId: filters.userId }),
+    ...(filters.status === "active" && { expiresAt: { gt: now } }),
+    ...(filters.status === "expired" && { expiresAt: { lte: now } }),
+    ...((filters.search !== undefined || filters.role !== undefined) && {
+      user: {
+        is: {
+          ...(filters.role !== undefined && { role: filters.role }),
+          ...(filters.search !== undefined && {
+            OR: [
+              { fullName: { contains: filters.search } },
+              { email: { contains: filters.search } },
+            ],
+          }),
+        },
+      },
+    }),
+  } satisfies Prisma.SessionWhereInput;
+};
 
 const buildPropertyWhere = (
   filters: Omit<PropertyListFilters, "page" | "limit">,
@@ -386,7 +426,6 @@ const buildAssignmentWhere = (
 
 const buildAmenityWhere = (filters: Omit<AmenityListFilters, "page" | "limit">) =>
   ({
-    propertyId: filters.propertyId,
     ...(filters.search !== undefined && {
       name: { contains: filters.search },
     }),
@@ -498,6 +537,7 @@ const buildBookingWhere = (
     ...(filters.status !== undefined && { status: filters.status }),
     ...(filters.search !== undefined && {
       OR: [
+        { bookingRef: { contains: filters.search } },
         { targetLabel: { contains: filters.search } },
         { productName: { contains: filters.search } },
         { guestNameSnapshot: { contains: filters.search } },
@@ -583,6 +623,34 @@ export const updateUserById = (id: string, data: Prisma.UserUpdateInput) =>
     data,
   });
 
+export const updateUserRoleAndAssignments = (
+  userId: string,
+  role: Exclude<UserRole, "SUPER_ADMIN">,
+) =>
+  prisma.$transaction(async (tx) => {
+    await tx.propertyAssignment.deleteMany({
+      where: {
+        userId,
+        ...(role === UserRole.ADMIN
+          ? { role: { not: PropertyAssignmentRole.ADMIN } }
+          : role === UserRole.MANAGER
+            ? { role: { not: PropertyAssignmentRole.MANAGER } }
+            : {}),
+      },
+    });
+
+    if (role === UserRole.GUEST) {
+      await tx.propertyAssignment.deleteMany({
+        where: { userId },
+      });
+    }
+
+    return tx.user.update({
+      where: { id: userId },
+      data: { role },
+    });
+  });
+
 export const listUsersPaginated = async (filters: UserListFilters) => {
   const where = buildUserWhere(filters);
   const skip = (filters.page - 1) * filters.limit;
@@ -599,6 +667,72 @@ export const listUsersPaginated = async (filters: UserListFilters) => {
 
   return { items, total };
 };
+
+export const listSessionsPaginated = async (filters: SessionListFilters) => {
+  const where = buildSessionWhere(filters);
+  const skip = (filters.page - 1) * filters.limit;
+
+  const [items, total] = await prisma.$transaction([
+    prisma.session.findMany({
+      where,
+      skip,
+      take: filters.limit,
+      orderBy: { createdAt: "desc" },
+      include: dashboardSessionInclude,
+    }),
+    prisma.session.count({ where }),
+  ]);
+
+  return { items, total };
+};
+
+export const findSessionById = (id: string) =>
+  prisma.session.findUnique({
+    where: { id },
+    include: dashboardSessionInclude,
+  });
+
+export const deleteSessionById = (id: string) =>
+  prisma.session.deleteMany({
+    where: { id },
+  });
+
+export const deleteSessionsForUser = (userId: string) =>
+  prisma.session.deleteMany({
+    where: { userId },
+  });
+
+export const deleteSessionsForUserExcept = (
+  userId: string,
+  currentRefreshToken: string,
+) =>
+  prisma.session.deleteMany({
+    where: {
+      userId,
+      refreshToken: { not: currentRefreshToken },
+    },
+  });
+
+export const deleteExpiredSessions = () =>
+  prisma.session.deleteMany({
+    where: {
+      expiresAt: { lte: new Date() },
+    },
+  });
+
+export const deletePasswordResetTokensForUser = (userId: string) =>
+  prisma.passwordResetToken.deleteMany({
+    where: { userId },
+  });
+
+export const createPasswordResetToken = (data: {
+  userId: string;
+  tokenHash: string;
+  expiresAt: Date;
+}) =>
+  prisma.passwordResetToken.create({
+    data,
+  });
 
 export const countUsersByRole = (role: UserRole, createdByUserId?: string) =>
   prisma.user.count({
@@ -815,7 +949,7 @@ export const listAmenitiesPaginated = async (filters: AmenityListFilters) => {
       skip,
       take: filters.limit,
       orderBy: { createdAt: "desc" },
-      include: dashboardAmenityInclude,
+      select: dashboardAmenitySelect,
     }),
     prisma.amenity.count({ where }),
   ]);
@@ -826,42 +960,75 @@ export const listAmenitiesPaginated = async (filters: AmenityListFilters) => {
 export const findAmenityById = (id: string) =>
   prisma.amenity.findUnique({
     where: { id },
-    include: dashboardAmenityInclude,
+    select: dashboardAmenitySelect,
   });
 
-export const createAmenity = (data: Prisma.AmenityCreateInput) =>
-  prisma.amenity.create({
-    data,
-    include: dashboardAmenityInclude,
+export const createAmenity = async (data: { name: string; icon?: string }) => {
+  const id = randomUUID();
+
+  await prisma.$executeRaw`
+    INSERT INTO amenities (id, name, icon, isActive, createdAt)
+    VALUES (${id}, ${data.name}, ${data.icon ?? null}, true, NOW(3))
+  `;
+
+  return prisma.amenity.findUniqueOrThrow({
+    where: { id },
+    select: dashboardAmenitySelect,
   });
+};
 
 export const updateAmenityById = (id: string, data: Prisma.AmenityUpdateInput) =>
   prisma.amenity.update({
     where: { id },
     data,
-    include: dashboardAmenityInclude,
+    select: dashboardAmenitySelect,
   });
 
-export const countActiveAmenitiesByPropertyAndIds = (
-  propertyId: string,
-  ids: string[],
-) =>
+export const countActiveAmenitiesByIds = (ids: string[]) =>
   prisma.amenity.count({
     where: {
-      propertyId,
       id: { in: ids },
       isActive: true,
     },
   });
 
-export const countAmenities = (propertyIds?: string[]) =>
-  prisma.amenity.count({
-    where: {
-      ...(propertyIds !== undefined && {
-        propertyId: { in: propertyIds },
-      }),
-    },
+export const listPropertyAmenityIds = async (propertyId: string) => {
+  const rows = await prisma.propertyAmenity.findMany({
+    where: { propertyId },
+    select: { amenityId: true },
   });
+
+  return rows.map((row) => row.amenityId);
+};
+
+export const replacePropertyAmenities = async (
+  propertyId: string,
+  amenityIds: string[],
+) =>
+  prisma.$transaction(async (tx) => {
+    await tx.propertyAmenity.deleteMany({
+      where: { propertyId },
+    });
+
+    if (amenityIds.length > 0) {
+      await tx.propertyAmenity.createMany({
+        data: amenityIds.map((amenityId) => ({
+          propertyId,
+          amenityId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    const rows = await tx.propertyAmenity.findMany({
+      where: { propertyId },
+      select: { amenityId: true },
+    });
+
+    return rows.map((row) => row.amenityId);
+  });
+
+export const countAmenities = () => prisma.amenity.count();
 
 export const listUnitsPaginated = async (filters: UnitListFilters) => {
   const where = buildUnitWhere(filters);

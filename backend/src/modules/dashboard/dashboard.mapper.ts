@@ -18,6 +18,7 @@ import type {
   DashboardRoomDTO,
   DashboardRoomPricingDTO,
   DashboardRoomProductDTO,
+  DashboardSessionDTO,
   DashboardTaxDTO,
   DashboardTenantDTO,
   DashboardUnitDTO,
@@ -54,8 +55,29 @@ export const mapUser = (
   countryCode: user.countryCode ?? null,
   contactNumber: user.contactNumber ?? null,
   isActive: user.isActive,
+  mustChangePassword: user.mustChangePassword,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
+});
+
+export const mapSession = (
+  session: repo.DashboardSessionRecord,
+  currentRefreshToken?: string,
+  now = new Date(),
+): DashboardSessionDTO => ({
+  id: session.id,
+  userId: session.userId,
+  userFullName: session.user.fullName,
+  userEmail: session.user.email,
+  userRole: session.user.role,
+  ip: session.ip ?? null,
+  userAgent: session.userAgent ?? null,
+  expiresAt: session.expiresAt,
+  createdAt: session.createdAt,
+  isExpired: session.expiresAt <= now,
+  isCurrent:
+    currentRefreshToken !== undefined &&
+    session.refreshToken === currentRefreshToken,
 });
 
 export const mapProperty = (
@@ -129,8 +151,6 @@ export const mapAmenity = (
   amenity: repo.DashboardAmenityRecord,
 ): DashboardAmenityDTO => ({
   id: amenity.id,
-  propertyId: amenity.propertyId,
-  propertyName: amenity.property.name,
   name: amenity.name,
   icon: amenity.icon ?? null,
   isActive: amenity.isActive,
@@ -158,7 +178,6 @@ export const mapRoom = (room: repo.DashboardRoomRecord): DashboardRoomDTO => ({
   unitNumber: room.unit.unitNumber,
   name: room.name,
   number: room.number,
-  rent: room.rent,
   hasAC: room.hasAC,
   maxOccupancy: room.maxOccupancy,
   status: room.status,
@@ -261,6 +280,7 @@ export const mapCoupon = (
   validFrom: coupon.validFrom,
   validTo: coupon.validTo ?? null,
   isActive: coupon.isActive,
+  oncePerUser: coupon.oncePerUser,
   createdAt: coupon.createdAt,
   updatedAt: coupon.updatedAt,
 });

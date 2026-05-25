@@ -14,6 +14,7 @@ import type {
   TenantStatus,
   TaxType,
   UnitStatus,
+  UserRole,
 } from "@/generated/prisma/enums.js";
 
 export interface DashboardPaginationInput {
@@ -43,13 +44,26 @@ export interface DashboardManagerListInput extends DashboardPaginationInput {
   isActive?: boolean;
 }
 
+export interface DashboardUserListInput extends DashboardPaginationInput {
+  search?: string;
+  role?: UserRole;
+  isActive?: boolean;
+  mustChangePassword?: boolean;
+}
+
+export interface DashboardSessionListInput extends DashboardPaginationInput {
+  search?: string;
+  userId?: string;
+  role?: UserRole;
+  status?: "active" | "expired";
+}
+
 export interface DashboardAssignmentListInput extends DashboardPaginationInput {
   propertyId?: string;
   role?: PropertyAssignmentRole;
 }
 
 export interface DashboardAmenityListInput extends DashboardPaginationInput {
-  propertyId: string;
   search?: string;
   isActive?: boolean;
 }
@@ -188,6 +202,18 @@ export interface UpdateDashboardUserInput {
   contactNumber?: string;
 }
 
+export interface UpdateDashboardUserStatusInput {
+  isActive: boolean;
+}
+
+export interface UpdateDashboardUserRoleInput {
+  role: Exclude<UserRole, "SUPER_ADMIN">;
+}
+
+export interface UpdateDashboardForcePasswordChangeInput {
+  mustChangePassword: boolean;
+}
+
 export interface CreateDashboardAssignmentInput {
   propertyId: string;
   userId: string;
@@ -203,6 +229,10 @@ export interface UpdateDashboardAmenityInput {
   name?: string;
   icon?: string;
   isActive?: boolean;
+}
+
+export interface ReplaceDashboardPropertyAmenityAssignmentsInput {
+  amenityIds: string[];
 }
 
 export interface CreateDashboardUnitInput {
@@ -224,7 +254,6 @@ export interface CreateDashboardRoomInput {
   unitId: string;
   name: string;
   number: string;
-  rent: number;
   hasAC?: boolean;
   maxOccupancy?: number;
   status?: RoomStatus;
@@ -235,7 +264,6 @@ export interface UpdateDashboardRoomInput {
   unitId?: string;
   name?: string;
   number?: string;
-  rent?: number;
   hasAC?: boolean;
   maxOccupancy?: number;
   status?: RoomStatus;
@@ -330,6 +358,7 @@ export interface CreateDashboardCouponInput {
   validFrom: Date;
   validTo?: Date;
   isActive?: boolean;
+  oncePerUser?: boolean;
 }
 
 export interface UpdateDashboardCouponInput {
@@ -343,6 +372,7 @@ export interface UpdateDashboardCouponInput {
   validFrom?: Date;
   validTo?: Date;
   isActive?: boolean;
+  oncePerUser?: boolean;
 }
 
 export interface UpdateDashboardBookingInput {
