@@ -2,126 +2,52 @@ import { prisma } from "../src/db/prisma.js";
 import { hashPassword } from "../src/common/utils/password.js";
 import { UserRole } from "../src/generated/prisma/client.js";
 
+const requiredEnv = (key: string): string => {
+  const value = process.env[key]?.trim();
+
+  if (!value) {
+    throw new Error(`Missing required seed env variable: ${key}`);
+  }
+
+  return value;
+};
+
 const credentials = {
   superAdmin: {
-    email: "superadmin@sucasa.com",
-    password: "SuperAdmin@123",
-  },
-  admin: {
-    email: "admin@sucasa.com",
-    password: "Admin@123",
-  },
-  manager: {
-    email: "manager@sucasa.com",
-    password: "Manager@123",
-  },
-  guest: {
-    email: "guest@sucasa.com",
-    password: "Guest@123",
+    fullName: requiredEnv("SEED_SUPER_ADMIN_FULL_NAME"),
+    email: requiredEnv("SEED_SUPER_ADMIN_EMAIL"),
+    password: requiredEnv("SEED_SUPER_ADMIN_PASSWORD"),
+    countryCode: requiredEnv("SEED_SUPER_ADMIN_COUNTRY_CODE"),
+    contactNumber: requiredEnv("SEED_SUPER_ADMIN_CONTACT_NUMBER"),
   },
 } as const;
 
 async function main() {
-  const [superAdminHash, adminHash, managerHash, guestHash] = await Promise.all(
-    [
-      hashPassword(credentials.superAdmin.password),
-      hashPassword(credentials.admin.password),
-      hashPassword(credentials.manager.password),
-      hashPassword(credentials.guest.password),
-    ],
-  );
+  const superAdminHash = await hashPassword(credentials.superAdmin.password);
 
-  const superAdmin = await prisma.user.upsert({
+  await prisma.user.upsert({
     where: { email: credentials.superAdmin.email },
     update: {
-      fullName: "Sucasa Super Admin",
+      fullName: credentials.superAdmin.fullName,
       passwordHash: superAdminHash,
       role: UserRole.SUPER_ADMIN,
       createdByUserId: null,
-      countryCode: "+91",
-      contactNumber: "9000000001",
+      countryCode: credentials.superAdmin.countryCode,
+      contactNumber: credentials.superAdmin.contactNumber,
       isActive: true,
     },
     create: {
-      fullName: "Sucasa Super Admin",
+      fullName: credentials.superAdmin.fullName,
       email: credentials.superAdmin.email,
       passwordHash: superAdminHash,
       role: UserRole.SUPER_ADMIN,
-      countryCode: "+91",
-      contactNumber: "9000000001",
-    },
-  });
-
-  const admin = await prisma.user.upsert({
-    where: { email: credentials.admin.email },
-    update: {
-      fullName: "Sucasa Admin",
-      passwordHash: adminHash,
-      role: UserRole.ADMIN,
-      createdByUserId: superAdmin.id,
-      countryCode: "+91",
-      contactNumber: "9000000002",
-      isActive: true,
-    },
-    create: {
-      fullName: "Sucasa Admin",
-      email: credentials.admin.email,
-      passwordHash: adminHash,
-      role: UserRole.ADMIN,
-      createdByUserId: superAdmin.id,
-      countryCode: "+91",
-      contactNumber: "9000000002",
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: credentials.manager.email },
-    update: {
-      fullName: "Sucasa Manager",
-      passwordHash: managerHash,
-      role: UserRole.MANAGER,
-      createdByUserId: admin.id,
-      countryCode: "+91",
-      contactNumber: "9000000003",
-      isActive: true,
-    },
-    create: {
-      fullName: "Sucasa Manager",
-      email: credentials.manager.email,
-      passwordHash: managerHash,
-      role: UserRole.MANAGER,
-      createdByUserId: admin.id,
-      countryCode: "+91",
-      contactNumber: "9000000003",
-    },
-  });
-
-  await prisma.user.upsert({
-    where: { email: credentials.guest.email },
-    update: {
-      fullName: "Demo Guest",
-      passwordHash: guestHash,
-      role: UserRole.GUEST,
-      createdByUserId: null,
-      countryCode: "+91",
-      contactNumber: "9000000004",
-      isActive: true,
-    },
-    create: {
-      fullName: "Demo Guest",
-      email: credentials.guest.email,
-      passwordHash: guestHash,
-      role: UserRole.GUEST,
-      countryCode: "+91",
-      contactNumber: "9000000004",
+      countryCode: credentials.superAdmin.countryCode,
+      contactNumber: credentials.superAdmin.contactNumber,
     },
   });
 
   console.table([
     { app: "dashboard", role: "SUPER_ADMIN", ...credentials.superAdmin },
-    { app: "dashboard", role: "ADMIN", ...credentials.admin },
-    { app: "dashboard", role: "MANAGER", ...credentials.manager },
-    { app: "frontend", role: "GUEST", ...credentials.guest },
   ]);
 }
 
