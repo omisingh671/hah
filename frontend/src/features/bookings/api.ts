@@ -1,0 +1,100 @@
+import axiosInstance from "@/api/axios";
+import type {
+  Booking,
+  BookingGuestDetails,
+  BookingQuote,
+  ComfortOption,
+  CreateOptionBookingPayload,
+  InventoryLock,
+  CreateManualPaymentResponse,
+} from "./types";
+
+type GuestDetailsPayload = {
+  guestDetails?: BookingGuestDetails;
+  couponCode?: string;
+};
+
+export type CreateBookingPayload =
+  | (CreateOptionBookingPayload & GuestDetailsPayload)
+  | ({
+      bookingType?: "SINGLE_TARGET";
+      spaceId: string;
+      inventoryLockToken?: string;
+      from: string;
+      to: string;
+      guests: number;
+      comfortOption: ComfortOption;
+    } & GuestDetailsPayload)
+  | ({
+      bookingType: "MULTI_ROOM";
+      spaceIds: string[];
+      inventoryLockToken?: string;
+      from: string;
+      to: string;
+      guests: number;
+      comfortOption: ComfortOption;
+    } & GuestDetailsPayload);
+
+export const listBookings = async (): Promise<Booking[]> => {
+  const res = await axiosInstance.get("/public/bookings");
+  return res.data?.data ?? [];
+};
+
+export const createBooking = async (
+  payload: CreateBookingPayload,
+): Promise<Booking> => {
+  const res = await axiosInstance.post("/public/bookings", payload);
+  return res.data?.data;
+};
+
+export const getBookingQuote = async (
+  payload: CreateBookingPayload,
+): Promise<BookingQuote> => {
+  const quotePayload = { ...payload };
+  delete quotePayload.guestDetails;
+  const res = await axiosInstance.post("/public/bookings/quote", quotePayload);
+  return res.data?.data;
+};
+
+export const createInventoryLock = async (
+  payload: CreateBookingPayload,
+): Promise<InventoryLock> => {
+  const lockPayload = { ...payload };
+  delete lockPayload.guestDetails;
+  delete lockPayload.couponCode;
+  const res = await axiosInstance.post("/public/inventory-locks", lockPayload);
+  return res.data?.data;
+};
+
+export const getBooking = async (id: string): Promise<Booking> => {
+  const res = await axiosInstance.get(`/public/bookings/${id}`);
+  return res.data?.data;
+};
+
+export const cancelBooking = async (
+  bookingId: string,
+  reason?: string,
+): Promise<Booking> => {
+  const res = await axiosInstance.patch(`/public/bookings/${bookingId}/cancel`, {
+    ...(reason !== undefined && { reason }),
+  });
+  return res.data?.data;
+};
+
+export const createManualPayment = async (
+  bookingId: string,
+  idempotencyKey: string,
+  amount: number,
+): Promise<CreateManualPaymentResponse> => {
+  const res = await axiosInstance.post(
+    `/public/bookings/${bookingId}/payments/manual`,
+    { amount },
+    {
+      headers: {
+        "Idempotency-Key": idempotencyKey,
+      },
+    },
+  );
+
+  return res.data?.data;
+};
