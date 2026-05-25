@@ -737,6 +737,7 @@ model Coupon {
   validFrom     DateTime
   validTo       DateTime?
   isActive      Boolean      @default(true)
+  oncePerUser   Boolean      @default(false)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
 

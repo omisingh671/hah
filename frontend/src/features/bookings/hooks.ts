@@ -55,6 +55,38 @@ export const useBookingQuote = () =>
     mutationFn: async (payload) => api.getBookingQuote(payload),
   });
 
+export const useBookingCheckoutQuote = () =>
+  useMutation<
+    BookingQuote,
+    Error,
+    { bookingId: string; payload: api.BookingCheckoutQuotePayload }
+  >({
+    mutationFn: async ({ bookingId, payload }) =>
+      api.getBookingCheckoutQuote(bookingId, payload),
+  });
+
+export const useUpdateBookingCheckout = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    Booking,
+    Error,
+    { bookingId: string; payload: api.UpdateBookingCheckoutPayload }
+  >({
+    mutationFn: async ({ bookingId, payload }) =>
+      api.updateBookingCheckout(bookingId, payload),
+    onSuccess: (booking) => {
+      queryClient.invalidateQueries({ queryKey: BOOKING_KEYS.all });
+      queryClient.invalidateQueries({
+        queryKey: BOOKING_KEYS.detail(booking.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: PUBLIC_QUERY_KEYS.availability.check,
+      });
+    },
+  });
+};
+
 export const useCreateManualPayment = () => {
   const queryClient = useQueryClient();
 

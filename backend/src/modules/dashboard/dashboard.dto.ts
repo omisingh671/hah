@@ -323,6 +323,7 @@ export interface DashboardCouponDTO {
   validFrom: Date;
   validTo: Date | null;
   isActive: boolean;
+  oncePerUser: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -114,7 +114,6 @@ import type {
   DashboardRoomPricingDTO,
   DashboardRoomProductDTO,
   DashboardRoomDTO,
-  DashboardSessionDTO,
   DashboardSummaryDTO,
   DashboardTaxDTO,
   DashboardTenantDTO,
@@ -2900,6 +2899,7 @@ export const createCoupon = async (
       validFrom: input.validFrom,
       ...(input.validTo !== undefined && { validTo: input.validTo }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
+      ...(input.oncePerUser !== undefined && { oncePerUser: input.oncePerUser }),
     });
 
     return mapCoupon(coupon);
@@ -2944,6 +2944,7 @@ export const updateCoupon = async (
       ...(input.validFrom !== undefined && { validFrom: input.validFrom }),
       ...(input.validTo !== undefined && { validTo: input.validTo }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
+      ...(input.oncePerUser !== undefined && { oncePerUser: input.oncePerUser }),
     });
 
     return mapCoupon(coupon);

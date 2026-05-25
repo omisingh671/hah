@@ -862,6 +862,9 @@ export const createCoupon = async (req: AuthRequest, res: Response) => {
       validFrom: body.validFrom,
       ...(body.validTo !== undefined && { validTo: body.validTo }),
       ...(body.isActive !== undefined && { isActive: body.isActive }),
+      ...(body.oncePerUser !== undefined && {
+        oncePerUser: body.oncePerUser,
+      }),
     },
   );
   res.status(201).json({ success: true, data });
@@ -885,6 +888,7 @@ export const updateCoupon = async (req: AuthRequest, res: Response) => {
     ...(body.validFrom !== undefined && { validFrom: body.validFrom }),
     ...(body.validTo !== undefined && { validTo: body.validTo }),
     ...(body.isActive !== undefined && { isActive: body.isActive }),
+    ...(body.oncePerUser !== undefined && { oncePerUser: body.oncePerUser }),
   });
   res.json({ success: true, data });
 };

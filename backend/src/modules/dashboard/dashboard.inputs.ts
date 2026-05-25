@@ -358,6 +358,7 @@ export interface CreateDashboardCouponInput {
   validFrom: Date;
   validTo?: Date;
   isActive?: boolean;
+  oncePerUser?: boolean;
 }
 
 export interface UpdateDashboardCouponInput {
@@ -371,6 +372,7 @@ export interface UpdateDashboardCouponInput {
   validFrom?: Date;
   validTo?: Date;
   isActive?: boolean;
+  oncePerUser?: boolean;
 }
 
 export interface UpdateDashboardBookingInput {

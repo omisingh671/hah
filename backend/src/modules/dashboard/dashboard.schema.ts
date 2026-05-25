@@ -471,6 +471,7 @@ export const createCouponSchema = z
     validFrom: z.coerce.date(),
     validTo: z.coerce.date().optional(),
     isActive: z.boolean().optional(),
+    oncePerUser: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.validTo !== undefined && data.validTo < data.validFrom) {
@@ -494,6 +495,7 @@ export const updateCouponSchema = z
     validFrom: z.coerce.date().optional(),
     validTo: z.coerce.date().optional(),
     isActive: z.boolean().optional(),
+    oncePerUser: z.boolean().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "At least one field must be provided",

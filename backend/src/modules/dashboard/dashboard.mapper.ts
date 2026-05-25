@@ -280,6 +280,7 @@ export const mapCoupon = (
   validFrom: coupon.validFrom,
   validTo: coupon.validTo ?? null,
   isActive: coupon.isActive,
+  oncePerUser: coupon.oncePerUser,
   createdAt: coupon.createdAt,
   updatedAt: coupon.updatedAt,
 });
