@@ -15,6 +15,7 @@ import {
   TenantStatus,
   TaxType,
   UnitStatus,
+  UserRole,
 } from "@/generated/prisma/enums.js";
 
 const idSchema = z.string().min(1, "ID is required");
@@ -75,6 +76,32 @@ export const listTenantsQuerySchema = basePaginationQuerySchema.extend({
 export const listUsersQuerySchema = basePaginationQuerySchema.extend({
   search: z.string().trim().min(1).optional(),
   isActive: optionalBooleanQuerySchema,
+});
+
+export const listAllUsersQuerySchema = basePaginationQuerySchema.extend({
+  search: z.string().trim().min(1).optional(),
+  role: z.nativeEnum(UserRole).optional(),
+  isActive: optionalBooleanQuerySchema,
+  mustChangePassword: optionalBooleanQuerySchema,
+});
+
+export const listSessionsQuerySchema = basePaginationQuerySchema.extend({
+  search: z.string().trim().min(1).optional(),
+  userId: idSchema.optional(),
+  role: z.nativeEnum(UserRole).optional(),
+  status: z.enum(["active", "expired"]).optional(),
+});
+
+export const updateUserStatusSchema = z.object({
+  isActive: z.boolean(),
+});
+
+export const updateUserRoleSchema = z.object({
+  role: z.enum([UserRole.ADMIN, UserRole.MANAGER, UserRole.GUEST]),
+});
+
+export const updateForcePasswordChangeSchema = z.object({
+  mustChangePassword: z.boolean(),
 });
 
 export const listAssignmentsQuerySchema = basePaginationQuerySchema.extend({

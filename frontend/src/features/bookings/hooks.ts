@@ -34,13 +34,19 @@ export const useBooking = (id?: string, enabled = true) => {
 
 export const useCreateBooking = () => {
   const queryClient = useQueryClient();
+
+  const invalidateBookingAvailability = () => {
+    queryClient.invalidateQueries({ queryKey: BOOKING_KEYS.all });
+    queryClient.invalidateQueries({
+      queryKey: PUBLIC_QUERY_KEYS.availability.check,
+    });
+  };
+
   return useMutation({
     mutationFn: async (payload: CreateBookingPayload) => {
       return api.createBooking(payload);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: BOOKING_KEYS.all });
-    },
+    onSuccess: invalidateBookingAvailability,
   });
 };
 
@@ -77,6 +83,9 @@ export const useCancelBooking = () => {
       queryClient.invalidateQueries({ queryKey: BOOKING_KEYS.all });
       queryClient.invalidateQueries({
         queryKey: BOOKING_KEYS.detail(booking.id),
+      });
+      queryClient.invalidateQueries({
+        queryKey: PUBLIC_QUERY_KEYS.availability.check,
       });
     },
   });

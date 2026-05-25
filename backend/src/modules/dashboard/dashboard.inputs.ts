@@ -14,6 +14,7 @@ import type {
   TenantStatus,
   TaxType,
   UnitStatus,
+  UserRole,
 } from "@/generated/prisma/enums.js";
 
 export interface DashboardPaginationInput {
@@ -41,6 +42,20 @@ export interface DashboardAdminListInput extends DashboardPaginationInput {
 export interface DashboardManagerListInput extends DashboardPaginationInput {
   search?: string;
   isActive?: boolean;
+}
+
+export interface DashboardUserListInput extends DashboardPaginationInput {
+  search?: string;
+  role?: UserRole;
+  isActive?: boolean;
+  mustChangePassword?: boolean;
+}
+
+export interface DashboardSessionListInput extends DashboardPaginationInput {
+  search?: string;
+  userId?: string;
+  role?: UserRole;
+  status?: "active" | "expired";
 }
 
 export interface DashboardAssignmentListInput extends DashboardPaginationInput {
@@ -185,6 +200,18 @@ export interface UpdateDashboardUserInput {
   isActive?: boolean;
   countryCode?: string;
   contactNumber?: string;
+}
+
+export interface UpdateDashboardUserStatusInput {
+  isActive: boolean;
+}
+
+export interface UpdateDashboardUserRoleInput {
+  role: Exclude<UserRole, "SUPER_ADMIN">;
+}
+
+export interface UpdateDashboardForcePasswordChangeInput {
+  mustChangePassword: boolean;
 }
 
 export interface CreateDashboardAssignmentInput {

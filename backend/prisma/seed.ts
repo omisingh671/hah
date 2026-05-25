@@ -22,6 +22,27 @@ const credentials = {
   },
 } as const;
 
+const seededAmenities = [
+  { name: "24x7 Security", icon: "FiCamera" },
+  { name: "AC", icon: "FiWind" },
+  { name: "Balcony", icon: "FiNavigation" },
+  { name: "Dining Area", icon: "FiCoffee" },
+  { name: "Fast Wi-Fi", icon: "FiWifi" },
+  { name: "Fully Furnished", icon: "MdChair" },
+  { name: "Gated Community", icon: "FiShield" },
+  { name: "House Keeping", icon: "MdCleaningServices" },
+  { name: "Lift Access", icon: "FiArrowUp" },
+  { name: "Modular Kitchen", icon: "MdKitchen" },
+  { name: "Parking", icon: "FaParking" },
+  { name: "Power Backup", icon: "FiZap" },
+  { name: "Regular Maintenance", icon: "MdBuild" },
+  { name: "RO Water", icon: "MdWaterDrop" },
+  { name: "Wardrobe", icon: "MdDoorFront" },
+] as const satisfies ReadonlyArray<{
+  name: string;
+  icon: string;
+}>;
+
 async function main() {
   const superAdminHash = await hashPassword(credentials.superAdmin.password);
 
@@ -46,9 +67,27 @@ async function main() {
     },
   });
 
+  await Promise.all(
+    seededAmenities.map((amenity) =>
+      prisma.amenity.upsert({
+        where: { name: amenity.name },
+        update: {
+          icon: amenity.icon,
+          isActive: true,
+        },
+        create: {
+          name: amenity.name,
+          icon: amenity.icon,
+          isActive: true,
+        },
+      }),
+    ),
+  );
+
   console.table([
     { app: "dashboard", role: "SUPER_ADMIN", ...credentials.superAdmin },
   ]);
+  console.log(`Seeded ${seededAmenities.length} amenities.`);
 }
 
 main()
