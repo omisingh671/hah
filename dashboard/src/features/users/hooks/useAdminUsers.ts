@@ -133,6 +133,16 @@ export function useManagedUsers(
       queryKey: ADMIN_KEYS.sessions.all(),
     });
 
+  const createAdminMutation = useMutation({
+    mutationFn: (payload: CreateUserPayload) => createUser("admins", payload),
+    onSuccess: async () => {
+      await invalidateUsers();
+      await queryClient.invalidateQueries({
+        queryKey: ADMIN_KEYS.users.all("admins"),
+      });
+    },
+  });
+
   const statusMutation = useMutation({
     mutationFn: (variables: ManagedUserStatusVariables) =>
       updateManagedUserStatus(variables),
@@ -170,6 +180,8 @@ export function useManagedUsers(
 
   return {
     ...usersQuery,
+    createAdmin: createAdminMutation.mutateAsync,
+    isCreatingAdmin: createAdminMutation.isPending,
     updateStatus: statusMutation.mutateAsync,
     isUpdatingStatus: statusMutation.isPending,
     updateRole: roleMutation.mutateAsync,
