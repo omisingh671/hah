@@ -18,6 +18,7 @@ import {
   emptyRate,
   emptyTax,
   formatDate,
+  getRateFormErrors,
   getRateTarget,
   productSchema,
   rateSchema,
@@ -26,6 +27,7 @@ import {
   type CouponForm,
   type ProductForm,
   type RateForm,
+  type RateFormErrors,
   type Tab,
   type TaxForm,
 } from "@/features/pricing/pricingPage.helpers";
@@ -54,10 +56,12 @@ const inputClass =
   "h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-700 outline-none transition focus:border-slate-500 focus:ring-2 focus:ring-slate-100";
 const actionRowClass =
   "flex flex-wrap gap-2 border-t border-slate-100 pt-5 sm:col-span-2";
+const fieldErrorClass = "text-xs font-medium text-rose-600";
 
 export default function PricingPage() {
   const [activeTab, setActiveTab] = useState<Tab>("products");
   const [error, setError] = useState<string | null>(null);
+  const [rateErrors, setRateErrors] = useState<RateFormErrors>({});
   const [editingProduct, setEditingProduct] = useState<AdminRoomProduct | null>(
     null,
   );
@@ -111,7 +115,17 @@ export default function PricingPage() {
 
   const submitRate = async () => {
     setError(null);
-    const parsed = rateSchema.parse(rateForm);
+    setRateErrors({});
+
+    const result = rateSchema.safeParse(rateForm);
+
+    if (!result.success) {
+      setRateErrors(getRateFormErrors(result.error));
+      setError("Fix the highlighted price rule fields.");
+      return;
+    }
+
+    const parsed = result.data;
     const payload: RatePayload = {
       productId: parsed.productId,
       rateType: parsed.rateType,
@@ -139,11 +153,32 @@ export default function PricingPage() {
         await actions.createRate(payload);
       }
       setRateForm(emptyRate);
+      setRateErrors({});
       setEditingRate(null);
     } catch (error) {
       setError(normalizeApiError(error).message);
     }
   };
+
+  const clearRateError = (field: keyof RateForm) => {
+    setRateErrors((prev) => {
+      if (!prev[field]) return prev;
+
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const rateInputClass = (field: keyof RateForm) =>
+    rateErrors[field]
+      ? `${inputClass} border-rose-300 focus:border-rose-500 focus:ring-rose-100`
+      : inputClass;
+
+  const rateFieldError = (field: keyof RateForm) =>
+    rateErrors[field] ? (
+      <span className={fieldErrorClass}>{rateErrors[field]}</span>
+    ) : null;
 
   const submitTax = async () => {
     setError(null);
@@ -203,6 +238,7 @@ export default function PricingPage() {
             value={selectedPropertyId || ""}
             onChange={(event) => {
               setError(null);
+              setRateErrors({});
               setSelectedPropertyId(event.target.value || null);
             }}
             className="appearance-none h-8 w-full bg-transparent text-sm outline-none cursor-pointer px-2"
@@ -224,6 +260,7 @@ export default function PricingPage() {
               type="button"
               onClick={() => {
                 setError(null);
+                setRateErrors({});
                 setActiveTab(tab.key);
               }}
               className={`rounded-md px-4 py-2 text-sm font-medium transition ${
@@ -391,13 +428,14 @@ export default function PricingPage() {
                     <span>Rate Product</span>
                     <select
                       value={rateForm.productId}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        clearRateError("productId");
                         setRateForm((prev) => ({
                           ...prev,
                           productId: event.target.value,
-                        }))
-                      }
-                      className={inputClass}
+                        }));
+                      }}
+                      className={rateInputClass("productId")}
                     >
                       <option value="">Select rate product</option>
                       {products.map((product) => (
@@ -406,19 +444,22 @@ export default function PricingPage() {
                         </option>
                       ))}
                     </select>
+                    {rateFieldError("productId")}
                   </label>
                   <label className={`${fieldClass} sm:col-span-2`}>
                     <span>Applies To</span>
                     <select
                       value={rateForm.targetType}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        clearRateError("unitId");
+                        clearRateError("roomId");
                         setRateForm((prev) => ({
                           ...prev,
                           targetType: event.target.value as RateForm["targetType"],
                           unitId: "",
                           roomId: "",
-                        }))
-                      }
+                        }));
+                      }}
                       className={inputClass}
                     >
                       <option value="PROPERTY">Property-wide</option>
@@ -431,13 +472,14 @@ export default function PricingPage() {
                       <span>Unit Override</span>
                       <select
                         value={rateForm.unitId}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          clearRateError("unitId");
                           setRateForm((prev) => ({
                             ...prev,
                             unitId: event.target.value,
-                          }))
-                        }
-                        className={inputClass}
+                          }));
+                        }}
+                        className={rateInputClass("unitId")}
                       >
                         <option value="">Select unit</option>
                         {units.map((unit) => (
@@ -446,6 +488,7 @@ export default function PricingPage() {
                           </option>
                         ))}
                       </select>
+                      {rateFieldError("unitId")}
                     </label>
                   )}
                   {rateForm.targetType === "ROOM" && (
@@ -453,13 +496,14 @@ export default function PricingPage() {
                       <span>Room Override</span>
                       <select
                         value={rateForm.roomId}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          clearRateError("roomId");
                           setRateForm((prev) => ({
                             ...prev,
                             roomId: event.target.value,
-                          }))
-                        }
-                        className={inputClass}
+                          }));
+                        }}
+                        className={rateInputClass("roomId")}
                       >
                         <option value="">Select room</option>
                         {rooms.map((room) => (
@@ -468,6 +512,7 @@ export default function PricingPage() {
                           </option>
                         ))}
                       </select>
+                      {rateFieldError("roomId")}
                     </label>
                   )}
                   <label className={fieldClass}>
@@ -508,79 +553,91 @@ export default function PricingPage() {
                     <span>Price</span>
                     <input
                       value={rateForm.price}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        clearRateError("price");
                         setRateForm((prev) => ({
                           ...prev,
                           price: Number(event.target.value),
-                        }))
-                      }
+                        }));
+                      }}
                       type="number"
                       min={1}
                       placeholder="Price"
-                      className={inputClass}
+                      className={rateInputClass("price")}
                     />
+                    {rateFieldError("price")}
                   </label>
                   <label className={fieldClass}>
                     <span>Minimum Nights</span>
                     <input
                       value={rateForm.minNights}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        clearRateError("minNights");
+                        clearRateError("maxNights");
                         setRateForm((prev) => ({
                           ...prev,
                           minNights: Number(event.target.value),
-                        }))
-                      }
+                        }));
+                      }}
                       type="number"
                       min={1}
                       placeholder="Min nights"
-                      className={inputClass}
+                      className={rateInputClass("minNights")}
                     />
+                    {rateFieldError("minNights")}
                   </label>
                   <label className={`${fieldClass} sm:col-span-2`}>
                     <span>Maximum Nights</span>
                     <input
                       value={rateForm.maxNights ?? ""}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        clearRateError("maxNights");
                         setRateForm((prev) => ({
                           ...prev,
                           maxNights: event.target.value
                             ? Number(event.target.value)
                             : undefined,
-                        }))
-                      }
+                        }));
+                      }}
                       type="number"
                       min={1}
                       placeholder="No max"
-                      className={inputClass}
+                      className={rateInputClass("maxNights")}
                     />
+                    {rateFieldError("maxNights")}
                   </label>
                   <label className={fieldClass}>
                     <span>Valid From</span>
                     <input
                       value={rateForm.validFrom}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        clearRateError("validFrom");
+                        clearRateError("validTo");
                         setRateForm((prev) => ({
                           ...prev,
                           validFrom: event.target.value,
-                        }))
-                      }
+                        }));
+                      }}
                       type="date"
-                      className={inputClass}
+                      className={rateInputClass("validFrom")}
                     />
+                    {rateFieldError("validFrom")}
                   </label>
                   <label className={fieldClass}>
                     <span>Valid To</span>
                     <input
                       value={rateForm.validTo ?? ""}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        clearRateError("validTo");
                         setRateForm((prev) => ({
                           ...prev,
                           validTo: event.target.value,
-                        }))
-                      }
+                        }));
+                      }}
                       type="date"
-                      className={inputClass}
+                      className={rateInputClass("validTo")}
                     />
+                    {rateFieldError("validTo")}
                   </label>
                   <div className="flex items-center justify-between rounded-md border border-slate-200 bg-slate-50 px-3 py-2.5 sm:col-span-2">
                     <span className="text-sm font-medium text-slate-700">Tax inclusive</span>
@@ -604,6 +661,7 @@ export default function PricingPage() {
                         onClick={() => {
                           setEditingRate(null);
                           setRateForm(emptyRate);
+                          setRateErrors({});
                         }}
                       >
                         Cancel
@@ -635,6 +693,7 @@ export default function PricingPage() {
                           className="text-indigo-600 hover:underline"
                           onClick={() => {
                             setEditingRate(rate);
+                            setRateErrors({});
                             setRateForm({
                               productId: rate.productId,
                               targetType: rate.roomId

@@ -12,9 +12,11 @@ import AdminTableRow from "@/components/admin-table/AdminTableRow";
 import PageSizeSelector from "@/components/common/PageSizeSelector";
 import Pagination from "@/components/common/Pagination";
 import Button from "@/components/ui/Button";
+import Modal from "@/components/ui/Modal";
 import { useAuthStore } from "@/stores/authStore";
 import { useAdminListState } from "@/hooks/admin/useAdminListState";
 import { normalizeApiError } from "@/utils/errors";
+import UserForm from "@/features/users/components/UserForm/UserForm";
 import { useManagedUsers } from "@/features/users/hooks/useAdminUsers";
 import type {
   AdminUser,
@@ -45,6 +47,7 @@ export default function UserManagementPage() {
   const currentUser = useAuthStore((state) => state.user);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
 
   const {
     page,
@@ -70,11 +73,13 @@ export default function UserManagementPage() {
     isPending,
     isFetching,
     isError,
+    createAdmin,
     updateStatus,
     updateRole,
     triggerPasswordReset,
     updateForcePasswordChange,
     revokeSessions,
+    isCreatingAdmin,
     isUpdatingStatus,
     isUpdatingRole,
     isTriggeringPasswordReset,
@@ -187,14 +192,22 @@ export default function UserManagementPage() {
             </select>
           </div>
 
-          <Button
-            type="button"
-            variant="secondary"
-            icon={<FiRefreshCcw />}
-            onClick={resetFilters}
-          >
-            Reset
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {currentUser?.role === "SUPER_ADMIN" && (
+              <Button type="button" onClick={() => setIsCreateOpen(true)}>
+                Add Admin
+              </Button>
+            )}
+
+            <Button
+              type="button"
+              variant="secondary"
+              icon={<FiRefreshCcw />}
+              onClick={resetFilters}
+            >
+              Reset
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -221,7 +234,7 @@ export default function UserManagementPage() {
               <AdminTableCell as="th">User</AdminTableCell>
               <AdminTableCell as="th">Role</AdminTableCell>
               <AdminTableCell as="th">Status</AdminTableCell>
-              <AdminTableCell as="th">Password</AdminTableCell>
+              <AdminTableCell as="th">Password Change</AdminTableCell>
               <AdminTableCell as="th">Created</AdminTableCell>
               <AdminTableCell as="th" align="right">
                 Actions
@@ -323,7 +336,9 @@ export default function UserManagementPage() {
                           )
                         }
                       >
-                        {user.mustChangePassword ? "Required" : "Normal"}
+                        {user.mustChangePassword
+                          ? "Change Required"
+                          : "Force Change"}
                       </Button>
                     </AdminTableCell>
                     <AdminTableCell>
@@ -383,6 +398,39 @@ export default function UserManagementPage() {
           />
         </div>
       )}
+
+      <Modal
+        isOpen={isCreateOpen}
+        onClose={() => setIsCreateOpen(false)}
+        disableBackdropClose
+        disableEscapeClose
+        title="Add Admin"
+      >
+        <UserForm
+          submitLabel="Add Admin"
+          isSubmitting={isCreatingAdmin}
+          onCancel={() => setIsCreateOpen(false)}
+          onSubmit={async (values, setServerError) => {
+            try {
+              setActionError(null);
+              setActionSuccess(null);
+              await createAdmin({
+                fullName: values.fullName,
+                email: values.email,
+                password: values.password,
+                ...(values.contactNumber && {
+                  countryCode: values.countryCode,
+                  contactNumber: values.contactNumber,
+                }),
+              });
+              setIsCreateOpen(false);
+              setActionSuccess("Admin user created.");
+            } catch (error) {
+              setServerError(normalizeApiError(error).message);
+            }
+          }}
+        />
+      </Modal>
     </div>
   );
 }

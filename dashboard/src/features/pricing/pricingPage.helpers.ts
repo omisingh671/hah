@@ -12,17 +12,21 @@ export const productSchema = z.object({
 
 export const rateSchema = z
   .object({
-    productId: z.string().min(1),
+    productId: z.string().min(1, "Rate product is required"),
     targetType: z.enum(["PROPERTY", "UNIT", "ROOM"]),
     unitId: z.string().optional(),
     roomId: z.string().optional(),
     rateType: z.enum(["NIGHTLY", "WEEKLY", "MONTHLY"]),
     pricingTier: z.enum(["STANDARD", "CORPORATE", "SEASONAL"]),
-    minNights: z.number().int().min(1),
-    maxNights: z.number().int().min(1).optional(),
+    minNights: z.number().int().min(1, "Minimum nights must be at least 1"),
+    maxNights: z
+      .number()
+      .int()
+      .min(1, "Maximum nights must be at least 1")
+      .optional(),
     taxInclusive: z.boolean(),
-    price: z.number().positive(),
-    validFrom: z.string().min(1),
+    price: z.number().positive("Price must be greater than 0"),
+    validFrom: z.string().min(1, "Valid from date is required"),
     validTo: z.string().optional(),
   })
   .superRefine((data, ctx) => {
@@ -46,7 +50,15 @@ export const rateSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["maxNights"],
-        message: "Max nights must be greater than min nights",
+        message: "Maximum nights must be greater than or equal to minimum nights",
+      });
+    }
+
+    if (data.validFrom && data.validTo && data.validTo < data.validFrom) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["validTo"],
+        message: "Valid to date must be after valid from date",
       });
     }
   });
@@ -107,6 +119,26 @@ export const emptyRate: RateForm = {
   price: 1,
   validFrom: "",
   validTo: "",
+};
+
+export type RateFormErrors = Partial<Record<keyof RateForm, string>>;
+
+export const getRateFormErrors = (
+  error: z.ZodError<RateForm>,
+): RateFormErrors => {
+  const errors: RateFormErrors = {};
+  const rateFields = new Set<keyof RateForm>(Object.keys(emptyRate) as Array<keyof RateForm>);
+
+  for (const issue of error.issues) {
+    const [field] = issue.path;
+
+    if (typeof field === "string" && rateFields.has(field as keyof RateForm)) {
+      const key = field as keyof RateForm;
+      errors[key] ??= issue.message;
+    }
+  }
+
+  return errors;
 };
 
 export const emptyTax: TaxForm = {

@@ -9,6 +9,7 @@ CREATE TABLE `users` (
     `passwordHash` VARCHAR(191) NOT NULL,
     `role` ENUM('SUPER_ADMIN', 'ADMIN', 'MANAGER', 'GUEST') NOT NULL DEFAULT 'GUEST',
     `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `mustChangePassword` BOOLEAN NOT NULL DEFAULT false,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
@@ -28,6 +29,8 @@ CREATE TABLE `sessions` (
 
     UNIQUE INDEX `sessions_refreshToken_key`(`refreshToken`),
     INDEX `sessions_userId_idx`(`userId`),
+    INDEX `sessions_expiresAt_idx`(`expiresAt`),
+    INDEX `sessions_createdAt_idx`(`createdAt`),
     PRIMARY KEY (`id`)
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
@@ -448,6 +451,7 @@ CREATE TABLE `coupons` (
     `validFrom` DATETIME(3) NOT NULL,
     `validTo` DATETIME(3) NULL,
     `isActive` BOOLEAN NOT NULL DEFAULT true,
+    `oncePerUser` BOOLEAN NOT NULL DEFAULT false,
     `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
     `updatedAt` DATETIME(3) NOT NULL,
 
